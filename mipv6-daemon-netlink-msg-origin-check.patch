@@ -1,0 +1,98 @@
+From: Arnaud Ebalard <arno@natisbad.org>
+Date: Sat, 24 Oct 2009 10:11:58 +0000 (+0200)
+Subject: Security fix: Check origin of netlink messages in netlink helpers.
+X-Git-Url: http://www.umip.org/gitweb?p=umip.git;a=commitdiff_plain;h=0e67a61ffd37cc4e3dfa8add137a5d6cd8963a8e
+
+Security fix: Check origin of netlink messages in netlink helpers.
+
+Sending multicast Netlink messages requires some privileges. Sending
+unicast ones can be done by common users. Then, this is up to the
+receiver to filter incoming messages to verify the origin and prevent
+security issues. See http://lwn.net/Articles/329266/ for more information.
+
+As UMIP expects only kernel messages, this patch adds additional checks
+where needed to verify the kernel is the emiiter of the message. Note that
+this check needs to be done early (before checking if recvmsg() return
+value is not 0) to prevent someone sending us an empty message and
+returning.
+
+This patch is based on an initial version by Romain.
+---
+
+diff --git a/libnetlink/libnetlink.c b/libnetlink/libnetlink.c
+index e4f010e..b4a0aa5 100644
+--- a/libnetlink/libnetlink.c
++++ b/libnetlink/libnetlink.c
+@@ -185,6 +185,15 @@ int rtnl_dump_filter(struct rtnl_handle *rth,
+ 			continue;
+ 		}
+ 
++		/* Everyone can send empty messages which will led to
++		 * status == 0. Before checking if status == 0, check
++		 * the origin. Here, we only allow messages from kernel.
++		 * --arno */
++		if (nladdr.nl_pid != 0) {
++			NLDBG("Dropping non-kernel Netlink message.\n");
++			continue;
++		}
++
+ 		if (status == 0) {
+ 			NLDBG("EOF on netlink\n");
+ 			return -1;
+@@ -287,14 +296,24 @@ int rtnl_talk(struct rtnl_handle *rtnl, struct nlmsghdr *n, pid_t peer,
+ 			NLDBG_SYS("OVERRUN");
+ 			continue;
+ 		}
+-		if (status == 0) {
+-			NLDBG("EOF on netlink\n");
+-			return -1;
+-		}
++
+ 		if (msg.msg_namelen != sizeof(nladdr)) {
+ 			NLDBG("sender address length == %d\n", msg.msg_namelen);
+ 			return -2;
+ 		}
++		/* Everyone can send empty messages which will led to
++		 * status == 0. Before checking if status == 0, check
++		 * the origin. --arno */
++		if (nladdr.nl_pid != peer) {
++			NLDBG("Received Netlink message from unknown peer.\n");
++			continue;
++		}
++
++		if (status == 0) {
++			NLDBG("EOF on netlink\n");
++			return -1;
++		}
++
+ 		for (h = (struct nlmsghdr*)buf; status >= sizeof(*h); ) {
+ 			int err;
+ 			int len = h->nlmsg_len;
+@@ -391,14 +410,23 @@ int rtnl_listen(struct rtnl_handle *rtnl,
+ 			NLDBG_SYS("OVERRUN");
+ 			continue;
+ 		}
+-		if (status == 0) {
+-			NLDBG("EOF on netlink\n");
+-			return -1;
+-		}
+ 		if (msg.msg_namelen != sizeof(nladdr)) {
+ 			NLDBG("Sender address length == %d\n", msg.msg_namelen);
+ 			return -2;
+ 		}
++		/* Everyone can send empty messages which will led to
++		 * status == 0. Before checking if status == 0, check
++		 * the origin. Here, we only allow messages from kernel.
++		 * --arno */
++		if (nladdr.nl_pid != 0) {
++			NLDBG("Dropping non-kernel Netlink message.\n");
++			continue;
++		}
++
++		if (status == 0) {
++			NLDBG("EOF on netlink\n");
++			return -1;
++		}
+ 		for (h = (struct nlmsghdr*)buf; status >= sizeof(*h); ) {
+ 			int err;
+ 			int len = h->nlmsg_len;

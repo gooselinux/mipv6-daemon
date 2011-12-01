@@ -1,0 +1,22 @@
+diff -Nru mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c mipv6-daemon-umip-0.4.new/libmissing/inet6_rth_getaddr.c
+--- mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c	2007-09-13 11:42:42.000000000 +0200
++++ mipv6-daemon-umip-0.4.new/libmissing/inet6_rth_getaddr.c	2009-04-23 10:57:11.521890685 +0200
+@@ -2,6 +2,7 @@
+ 
+ /* This is a substitute for a missing inet6_rth_getaddr(). */
+ 
++#include <stddef.h>
+ #include <netinet/in.h>
+ 
+ struct in6_addr *inet6_rth_getaddr(const void *bp, int index)
+diff -Nru mipv6-daemon-umip-0.4/libmissing/inet6_rth_init.c mipv6-daemon-umip-0.4.new/libmissing/inet6_rth_init.c
+--- mipv6-daemon-umip-0.4/libmissing/inet6_rth_init.c	2007-09-13 11:42:42.000000000 +0200
++++ mipv6-daemon-umip-0.4.new/libmissing/inet6_rth_init.c	2009-04-23 10:56:58.110800384 +0200
+@@ -2,6 +2,7 @@
+ 
+ /* This is a substitute for a missing inet6_rth_init(). */
+ 
++#include <stddef.h>
+ #include <sys/socket.h>
+ #include <netinet/in.h>
+ #include <netinet/ip6.h>

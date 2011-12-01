@@ -1,0 +1,50 @@
+From: Romain Kuntz <kuntz@lsiit.u-strasbg.fr>
+Date: Sat, 24 Oct 2009 23:34:32 +0000 (+0200)
+Subject: Additional sanity checks for ND options length
+X-Git-Url: http://www.umip.org/gitweb?p=umip.git;a=commitdiff_plain;h=3fd3941434a0ee567f874e56c53a5d0855c945e3
+
+Additional sanity checks for ND options length
+---
+
+diff --git a/src/ha.c b/src/ha.c
+index a091490..8d37af9 100644
+--- a/src/ha.c
++++ b/src/ha.c
+@@ -106,7 +106,8 @@ static void ha_recv_ra(const struct icmp6_hdr *ih, ssize_t len,
+ 		if (opt[0] == ND_OPT_PREFIX_INFORMATION) {
+ 			struct nd_opt_prefix_info *p;
+ 			p = (struct nd_opt_prefix_info *)opt;
+-			if (p->nd_opt_pi_prefix_len > 128)
++
++			if (olen < sizeof(*p) || p->nd_opt_pi_prefix_len > 128)
+ 				return;
+ 			p->nd_opt_pi_valid_time = 
+ 				ntohl(p->nd_opt_pi_valid_time);
+@@ -119,6 +120,10 @@ static void ha_recv_ra(const struct icmp6_hdr *ih, ssize_t len,
+ 			   ra->nd_ra_flags_reserved & ND_RA_FLAG_HOME_AGENT) {
+ 			struct nd_opt_homeagent_info *hainfo;
+ 			hainfo = (struct nd_opt_homeagent_info *)opt;
++
++			if (olen < sizeof(*hainfo))
++				return;
++
+ 			pref = ntohs(hainfo->nd_opt_hai_preference);
+ 			life = ntohs(hainfo->nd_opt_hai_lifetime);
+ 			flags = hainfo->nd_opt_hai_flags_reserved;
+diff --git a/src/mn.c b/src/mn.c
+index 4743472..cb88662 100644
+--- a/src/mn.c
++++ b/src/mn.c
+@@ -1815,10 +1815,8 @@ static int mn_recv_na(int fd, struct home_addr_info *hai,
+ 	iif = pkt_info.ipi6_ifindex;
+ 	na = (struct nd_neighbor_advert *)msg;
+ 
+-	if (iif != ifindex || 
+-	    hoplimit < 255 || na->nd_na_code != 0 ||
+-	    len < sizeof(struct nd_neighbor_advert) ||
+-	    IN6_IS_ADDR_MULTICAST(&na->nd_na_target) ||
++	if (iif != ifindex || hoplimit < 255 || len < sizeof(*na) ||
++	    na->nd_na_code != 0 || IN6_IS_ADDR_MULTICAST(&na->nd_na_target) ||
+ 	    (na->nd_na_flags_reserved & ND_NA_FLAG_SOLICITED &&
+ 	     IN6_IS_ADDR_MULTICAST(daddr)))
+ 		return 0;
